@@ -1,0 +1,392 @@
+---
+title: "Curse of the Chicago Bears"
+output: pdf_document
+---
+
+```{r}
+# install.packages("readxl")
+# We'll need a library with a function that can read .xlsx files
+library("readxl")
+# Now we read the .xlsx file
+nfl_pt <- read_excel("NFL_Passing_Teams.xlsx")
+head(nfl_pt)
+# Let's find out the dimensions of this data set
+dim(nfl_pt)
+
+# The data is full empty rows in between the actual observations, so
+# we'll need to get creative with removing the empty rows without 
+# affect any of the actual data.
+index_empty <- which(apply(is.na(nfl_pt), 1, sum) == 17)
+nfl_pt <- nfl_pt[-index_empty, ]
+# Essentially, what I did was I used the is.na() function to get Boolean 
+# values out of the whole data set, and then use the apply function using
+# sum which allows us to sum up the number of TRUE values by row as they 
+# technically count as 1, so then we use which() to find which rows have
+# a sum value of 17 (the number of columns in this data set) to remove
+# in the second line of code.
+
+# We won't check for strange data as I pulled it all out of the NFL's website.
+# Instead, we'll just check out the summary stats.
+summary(nfl_pt)
+# Check to see if all years are available for us:
+unique(nfl_pt$Year)
+# All the years are accounted for and ready for analysis, except for 1982,
+# as that year had a shortened schedule which is just better off not seen.
+# write.csv(nfl_pt, "nfl_pass_offense.csv", row.names = F)
+```
+
+
+```{r}
+library(ggplot2)
+# Since spaces in column names are treated oddly, we'll remove the space from "Pass Yds"
+names(nfl_pt)[6] <- "PassYds"
+# We'll create a vector with empty elements to later merge with out dataset.
+IsBears <- replicate(n = dim(nfl_pt)[1], NA)
+# Now we use a for loop to insert indicators of which observations come from the Bears.
+for(i in 1:dim(nfl_pt)[1]) {
+  IsBears[i] <- ifelse(nfl_pt$Team[i] == "Bears", "Bears", "Not Bears")
+}
+
+nfl_pt2 <- cbind(nfl_pt, "IsBears" = IsBears)
+ggplot(nfl_pt2, aes(x = Year, y = PassYds, color = IsBears)) +
+  geom_point()
+```
+
+```
+As we can see, the Chicago Bears haven't exactly been a great passing team throughout their
+existence (at least from 1970). We see they are constantly below average in passing yards
+and even in those anomaly years where they appear to have a great passing season, even going
+above the 4000 yard mark in 1999, there is a lot more than what meets the eye. We already know
+that the Chicago Bears are currently the only team in the league to still not have a 
+quarterback with a 4000 yard passing season, so we'll find out later what exactly happened
+in those seasons where a miracle seemed to happen for Chicago. 
+
+Let's explore the passing yard history of the Chicago Bears starting with the 70's:
+```
+
+# The 1970's - The Dark Age
+
+```{r}
+# install.packages("sqldf")
+library(sqldf)
+seventies <- sqldf("SELECT * FROM nfl_pt2 WHERE Year BETWEEN 1970 AND 1979")
+b1 <- ggplot(seventies, aes(x = Year, y = PassYds, color = IsBears)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(1970, 1979, by = 1))
+b1
+
+avg70 <- mean(seventies$PassYds)
+avg70
+b1 + geom_hline(yintercept = avg70, linetype = "dashed", color = "red") +
+  ggtitle("1970's Bears vs the World - Passing Yards w/ Red Average Line")
+
+avg70_79 <- sqldf("SELECT Year, IsBears, AVG(PassYds) AS PassYds FROM seventies GROUP BY Year")
+bears70 <- sqldf("SELECT Year, IsBears, PassYds FROM seventies WHERE Team = 'Bears'")
+head(sqldf("SELECT * FROM avg70_79 UNION SELECT * FROM bears70"), 20)
+```
+
+```
+Not a single Bears team from the 70's managed to be above average. All of them were below
+average as they couldn't get past the decade average of 2529 passing yards, and a few
+of these Bears teams were at the very bottom as we can see in 1972 and 1976. Overall a
+terrible time to be a quarterback on the Chicago Bears, but that's not saying much.
+
+Let's see how the Bear's offense was during their golden era:
+```
+
+# The 1980's - The Era of Progress?
+
+```{r}
+eighties <- sqldf("SELECT * FROM nfl_pt2 WHERE Year BETWEEN 1980 AND 1989")
+b2 <- ggplot(eighties, aes(x = Year, y = PassYds, color = IsBears)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(1980, 1989, by = 1))
+b2
+
+avg80 <- mean(eighties$PassYds)
+avg80
+b2 + geom_hline(yintercept = avg80, linetype = "dashed", color = "red") +
+  ggtitle("1980's Bears vs A Red Average Line")
+
+avg80_89 <- sqldf("SELECT Year, IsBears, AVG(PassYds) AS PassYds FROM eighties GROUP BY Year")
+bears80 <- sqldf("SELECT Year, IsBears, PassYds FROM eighties WHERE Team = 'Bears'")
+head(sqldf("SELECT * FROM avg80_89 UNION SELECT * FROM bears80"), 20)
+
+cat("Now hold on there for a second. The 1987 Bears are actually above average in terms 
+of passing yards. However, they still don't pass the decade average of", avg80,
+"
+unfortunately. Still, let's take a look at the quarterback(s) for that year as
+this is still cause for celebration... for the Bears at least.")
+
+Bears_1987 <- read_excel("1987BearsPassing.xlsx")
+names(Bears_1987)[10] <- "CmpPercentage"
+names(Bears_1987)[11] <- "Yds"
+sqldf("SELECT Player, Pos, G, CmpPercentage, Yds FROM Bears_1987")
+```
+```
+While the Bears fared much better in the 80's, they were below average in passing
+yards. That didn't stop them from winning the Super Bowl in 1985 at all though as
+they had one of the greatest defenses ever assembled that year. Perhaps they could've
+won more Super Bowls in this decade if it wasn't for the various misfortunes that
+plagued the Bears, such as the injury to QB McMahon in 1986. Still though, at least
+we see that the 1987 season was a lot more successful than expected for the Bears'
+offense. Not successful enough to be above the decade average, but just enough to
+be above the passing average of that year.
+
+However, taking a closer look at the '87 Bears QBs and we see that the glory was
+shared amongst 6 different passers. Heck, if we look at the Position column, we see
+that most of them are unlabeled for reasons unknown. The most yards was from Jim
+McMahon and he only got 1639 yards; granted he only played in 7 games due to the strike
+going on at the time as well as drama between the players and coaches. Second highest
+yards goes to Mike Tomczak, who was the de facto Bears QB1 that year with 12 games
+played. Fun fact, two QBs here have later taken their own teams to the Super Bowl as
+head coaches: Sean Payton with the New Orleans Saints in 2009 and Jim Harbaugh with
+the San Francisco 49ers in 2012.
+```
+
+# The 1990's - Franchise Quarterback? It Could Perhaps be Done.
+
+
+```{r}
+nineties <- sqldf("SELECT * FROM nfl_pt2 WHERE Year BETWEEN 1990 AND 1999")
+b3 <- ggplot(nineties, aes(x = Year, y = PassYds, color = IsBears)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(1990, 1999, by = 1))
+b3
+
+avg90 <- mean(nineties$PassYds)
+avg90
+b3 + geom_hline(yintercept = avg90, linetype = "dashed", color = "red") +
+  ggtitle("1990's Bears vs the Rest of the NFL")
+# Looks like we're finally seeing actual progress! Ignoring the abomination that
+# is the 1993 Chicago Bears passing stat, we can see there are certainly bright
+# spots in 1995 and especially 1999. It looks like the Bears finally have a QB that
+# can take their franchise to new heights in the new century... or so one would
+# think by just looking at this. Still, they managed to cross the ever elusive
+# 4000 passing yard mark, an incredible feat that netted them... a 6-10 record.
+# Incredible.
+
+avg90_99 <- sqldf("SELECT Year, IsBears, AVG(PassYds) AS PassYds FROM nineties GROUP BY Year")
+bears90 <- sqldf("SELECT Year, IsBears, PassYds FROM nineties WHERE Team = 'Bears'")
+head(sqldf("SELECT * FROM avg90_99 UNION SELECT * FROM bears90"), 20)
+
+# Right off the bat, we can see that the Bears have beaten the year average passing
+# yards in 1992, 1995 (and this year had a high average of 3769 yards), and 1999 with the
+# 1997 team almost touching the average of that year by a measly 8.6 yards. But the real
+# stars of the show are 1995 and 1999. There is definitely some investigation that needs to
+# be done there.
+
+# 1995
+Bears_1995 <- read_excel("1995BearsPassing.xlsx")
+names(Bears_1995)[10] <- "CmpPercentage"
+names(Bears_1995)[11] <- "Yds"
+sqldf("SELECT Player, Pos, G, CmpPercentage, Yds FROM Bears_1995")
+# Only two QBs? With only one QB being the main source of passing yards? What
+# the actual hell is going on? Well, to begin, this is the highest the Chicago Bears
+# have ever reached with a single QB's passing stats. Detroit Lions fans might also 
+# recognize a familiar face in Erik Kramer, who was the only QB in their franchise's
+# history to win a playoff game in the entire Super Bowl Era. Quite an impressive
+# resume already considering that even 2021 LA Rams Super Bowl winning QB Matthew 
+# Stafford couldn't get the job done for the Lions. The '95 Bears also managed a 
+# decent 9-7 record, but missed the playoffs by an inch. Just anohter one of the many 
+# misfortunes that characterizes the Chicago franchise. But hey, maybe they have a
+# franchise QB at long last... right? Nah, he only had 5 seasons with the Bears and
+# hit his peak in 1995.He still certainly is one of the best quarterbacks Chicago
+# has ever had.
+
+# At long last, we have reached 1999. So far, the best record we see from the Bears'
+# passing record. This can only be good.
+Bears_1999 <- read_excel("1999BearsPassing.xlsx")
+names(Bears_1999)[10] <- "CmpPercentage"
+names(Bears_1999)[11] <- "Yds"
+sqldf("SELECT Player, Pos, G, CmpPercentage, Yds FROM Bears_1999")
+
+# What the hell?
+# Certainly not what anyone expects when you look at that passing yards stat. You
+# don't see 3 quarterbacks in one team throw for a total of over 4000 yards where
+# none of these fellas reached over 2000 yards individually. But if you haven't been
+# paying attention, this is just Bears football in a nutshell. 
+
+# That was disappointing. But hey, let's take a look at their longtime rivals: The
+# Green Bay Packers. They haven't been doing too hot since the 70's and 80's. They
+# just picked up some guy named Brett Favre in '92 to be the QB of the future for GB.
+# How did that turn out in comparison to the Bears?
+
+BvP_90 <- sqldf("SELECT * FROM nineties WHERE Team IN ('Bears', 'Packers')")
+ggplot(BvP_90, aes(x = Year, y = PassYds, color = Team)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(1990, 1999, by = 1)) +
+  ggtitle("Bears vs Packers in the 90's")
+
+# Reminder that Favre won 3 consecutive MVP's in this decade and made 2 Super
+# Bowls (record 1-1). Must be painful to live as a Bears fan. At least Chicago's
+# triplicate army of QBs beat Favre in '99. Not bad.
+```
+
+```
+Da Bears improved vastly from the previous two decades and had a 4k passing season.
+Granted, it took 3 QBs but still impressive nonetheless. The next stop for Chicago
+is now to get a true, single QB that can reach the fabled 4000 yard passing mark.
+They have to if they want to beat their rival Green Bay, who just happened to end
+up with a future Hall of Fame quarterback. Having a HoF quarterback is rare and most
+teams to this day would still kill for one, but eventually, everyone gets their time 
+to shine. At least Chicago hopes so.
+
+Onto the new millenium.
+```
+
+# The 2000's - Where are the Good Quarterbacks at?
+
+```{r}
+aughts <- sqldf("SELECT * FROM nfl_pt2 WHERE Year BETWEEN 2000 AND 2009")
+b4 <- ggplot(aughts, aes(x = Year, y = PassYds, color = IsBears)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(2000, 2009, by = 1))
+b4
+
+avg00 <- mean(aughts$PassYds)
+avg00
+b4 + geom_hline(yintercept = avg00, linetype = "dashed", color = "red") +
+  ggtitle("2000's's Bears vs the NFL Passing Average")
+
+# It seems like every we look at, the Bears drop the ball for the majority of the
+# years, going below to way below average. And then we have an outlier year or two like
+# 2007. Funny thing is, the one year they went above average was the year after the
+# Bears went to the Super Bowl on the backs of their defense and special teams units
+# and lost to the Manning-led Indianapolis Colts. They sure could've used that 2007
+# offense earlier but oh well. At least they made it.
+
+avg00_09 <- sqldf("SELECT Year, IsBears, AVG(PassYds) AS PassYds FROM aughts GROUP BY Year")
+bears00 <- sqldf("SELECT Year, IsBears, PassYds FROM aughts WHERE Team = 'Bears'")
+head(sqldf("SELECT * FROM avg00_09 UNION SELECT * FROM bears00"), 20)
+
+# They have higher averages than the previous decades but still fail to make the hurdle
+# over the decade average and annual average passing yards except in 2007. You just 
+# expect it from the Bears at this point. At least they almost touch the average after
+# 2007. Progress? 
+
+# Let's have a look at the team that made Super Bowl and the year after that.
+# 2006:
+Bears_2006 <- read_excel("2006BearsPassing.xlsx")
+names(Bears_2006)[10] <- "CmpPercentage"
+names(Bears_2006)[11] <- "Yds"
+sqldf("SELECT Player, Pos, G, CmpPercentage, Yds FROM Bears_2006")
+
+# By Chicago standards, Rex Grossman was not that bad. By modern NFL standards
+# Grossman is just completely mediocre. This is a guy that carried by the
+# special teams and defense all the way to the Super Bowl where Grossman
+# engaged in a shootout with Peyton Manning. It didn't end well.
+
+#2007:
+Bears_2007 <- read_excel("2007BearsPassing.xlsx")
+names(Bears_2007)[10] <- "CmpPercentage"
+names(Bears_2007)[11] <- "Yds"
+sqldf("SELECT Player, Pos, G, CmpPercentage, Yds FROM Bears_2007")
+
+# I'm sure we've seen stats like this before. I don't even need to talk 
+# about this. It's the Chicago Bears in peak form.
+
+# Meanwhile, in Green Bay:
+BvP_00 <- sqldf("SELECT * FROM aughts WHERE Team IN ('Bears', 'Packers')")
+ggplot(BvP_00, aes(x = Year, y = PassYds, color = Team)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(2000, 2009, by = 1)) +
+  ggtitle("Bears vs Packers: Dawn of Aaron Rodger")
+
+# Once upon a time, Brett Favre spent the majority of the early and mid
+# aughts threatening to retire from the NFL. The Green Bay Packers got some
+# young, unknown QB from UC Berkeley in the 2005 draft named Aaron Rodgers
+# as insurance in case Favre really did decide to retire. Let's just say
+# the draft pick did not help matters with Favre wanting to stay, and so he
+# retired in March 2008, where we would see him ever again(?) Aaron Rodger
+# needed to fill big shoes as his predecessor was a hall of fame QB, and he
+# answered the call to duty by turning into another HoF quarterback for GB.
+# Thus, in 2008, the Bears would continue to suffer while their rival continued 
+# to experience "once-in-a-lifetime" passing talent for the second time...
+```
+
+```
+It certainly seems like the Bears make an attempt to have a good quarterback
+but they either just don't know how to develop one or they keep picking the
+wrong one. Maybe they're just cursed to never have a quarterback that could
+come close to sniffing the success of the two recent hall of fame quarterbacks
+that Green Bay has. The modern NFL almost requires a skilled QB at the helm
+but the Bears seem to be stuck in the past. It's truly a wonder how such a 
+passing talent deprived team managed to make a Super Bowl in 2006. Now we
+move onto the final stretch...
+```
+
+# The 2010's (and 2020-2021): So Close Yet So Far
+
+```{r}
+tens <- sqldf("SELECT * FROM nfl_pt2 WHERE Year BETWEEN 2010 AND 2021")
+b5 <- ggplot(tens, aes(x = Year, y = PassYds, color = IsBears)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(2010, 2021, by = 1))
+b5
+
+avg10 <- mean(tens$PassYds)
+avg10
+b5 + geom_hline(yintercept = avg10, linetype = "dashed", color = "red") +
+  ggtitle("2010's's Bears vs the Mean NFL")
+
+# While this looks like any other decade with the bears (mostly below the average
+# with a few exceptions), I would like to point out that the Bears did not once 
+# dip below the 3000 passing yards mark. It doesn't seem like much, but in the 
+# modern NFL, having an offense below that threshold be cause for embarrassment.
+# So give it up for Chicago for at least having some form of stability. Also, give
+# the Bears some props for achieving the 4000 yard mark again, even if it isn't
+# with a single QB. They are late bloomers, but they seem to be on the right path.
+# Also, just take a look at that decade average: 4007 yards. Amazing how much
+# the offensive schemes have evolved throughout the decades.
+
+avg10_21 <- sqldf("SELECT Year, IsBears, AVG(PassYds) AS PassYds FROM tens GROUP BY Year")
+bears10 <- sqldf("SELECT Year, IsBears, PassYds FROM tens WHERE Team = 'Bears'")
+head(sqldf("SELECT * FROM avg10_21 UNION SELECT * FROM bears10"), 24)
+
+# Quite honestly, the Bears are looking quite impressive, even if they still fall
+# below average for most of the years. Especially in 2013, where the Bears hit
+# 4.4 passing yards.
+
+# Instead of taking a look at individual years for QB stats, let's take a look at
+# all the current ones for this date range:
+Bears_2010s <- read_excel("2010sBearsPassing.xlsx")
+names(Bears_2010s)[3] <- "Year"
+names(Bears_2010s)[12] <- "CmpPercentage"
+names(Bears_2010s)[13] <- "Yds"
+head(sqldf("SELECT Player, Year, Pos, G, CmpPercentage, Yds FROM Bears_2010s"), 38)
+
+# One name that really stands out is Jay Cutler. He is perhaps the best QB the Bears
+# ever had. His 2014 and 2015 stats were admirable, even if he never got to the
+# fabled 4000 yards by himself. The rest of the years are full of multiple QBs
+# combining to create a fairly impressive year in passing, especially in 2013.
+# Some years were with QB project Trubisky, who unfortunately didn't work out with the
+# Bears. Trubisky still led some teams into the playoffs. Either way, I can't really
+# say the Bears were outright bad this time around. They seem to be getting close
+# to finding their true franchise HoF QB. Perhaps it will be Justin Fields, who is
+# currently playing for the Bears right now. Who knows?
+
+# Anyways, let's see the Packers one more time for the laughs.
+BvP_10s <- sqldf("SELECT * FROM tens WHERE Team IN ('Bears', 'Packers')")
+ggplot(BvP_10s, aes(x = Year, y = PassYds, color = Team)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(2010, 2021, by = 1)) +
+  ggtitle("Bears vs Packers: This is Getting Out of Hand Now")
+
+# At least the Bears beat the Packers in 2015, barely. But aside from that,
+# it's what you expect out of a team struggling to find the right QB going against
+# a team with a hall of famer that stuck by for years. It's just sad and maybe
+# we'll one day see the roles flipped around for once in a long time.
+```
+
+```
+It's easy to say that the Chicago Bears just don't give a damn about quarterbacks
+or they've just been unfortunate when it comes to that, but the Bears to appear
+to be making progress towards getting a real QB of the future. With the new 
+17 game schedule, it is likely that the Bears have a shot at seeing their own guy
+hit the big 4k yards, perhaps even the legendary 5k yards. They certainly have
+inflicted with some kind of curse (probably from a witch living in Wisconsin), 
+but they're making strides to beat the odds. Chicago dreams of the day that they
+get a QB that can rival the likes of Aaron Rodgers, and maybe we'll it in our
+lifetimes. The NFL is a strange place; anything can happen.
+```

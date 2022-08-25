@@ -6,4 +6,4 @@ Edit: Finished.
 Join me as I explore the Chicago Bears endless fight with mediocrity at the quarterback position. Here, we explore the Bears' passing stats and compare them to the
 average of the eras they played in (i.e. 1970-1979, 1980-1989, etc) and indidual year average. We also go a bit in-depth with the years where the Bears appeared to
 have success at passing, only to realize that things don't appear as they seem. Special thanks to the NFL and Pro Football Reference for the data they provide
-on their websites.
+on their websites. You'll also see me combining the use R and SQL as it turns out that R Studio allows you to use both on the fly with a function.
